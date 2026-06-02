@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Explorit",
+    "slug": "explorit",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "explorit",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.explorit.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Нужна геолокация для построения маршрута",
+        "NSLocationAlwaysUsageDescription": "Нужна геолокация для навигации во время прогулки",
+        "NSPhotoLibraryUsageDescription": "Для загрузки фото в посты и аватар"
+      }
+    },
+    "android": {
+      "package": "com.explorit.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FAFAF7",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "web": { "favicon": "./assets/favicon.png" },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      "expo-splash-screen",
+      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "Нужна геолокация для маршрутов" }]
+    ],
+    "experiments": { "typedRoutes": true }
+  }
+}
