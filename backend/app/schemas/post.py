@@ -19,6 +19,7 @@ class PostResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+    is_liked: Optional[bool] = None
 
 
 class CreatePostRequest(BaseModel):

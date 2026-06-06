@@ -1,13 +1,12 @@
 from uuid import UUID
 from typing import Optional
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_optional_user
 from app.models.post import Post, Comment, Like, Report, POST_STATUS_ACTIVE, POST_STATUS_BLOCKED
 from app.models.user import User
 from app.schemas.post import (
@@ -32,12 +31,31 @@ async def _get_active_post(post_id: UUID, db: AsyncSession) -> Post:
     return post
 
 
+async def _with_likes(posts: list[Post], user_id, db: AsyncSession) -> list[PostResponse]:
+    liked_ids: set = set()
+    if user_id and posts:
+        result = await db.execute(
+            select(Like.post_id).where(
+                Like.user_id == user_id,
+                Like.post_id.in_([p.id for p in posts]),
+            )
+        )
+        liked_ids = {row[0] for row in result.fetchall()}
+    return [
+        PostResponse.model_validate(p).model_copy(
+            update={"is_liked": (p.id in liked_ids) if user_id else None}
+        )
+        for p in posts
+    ]
+
+
 # ─── Feed ─────────────────────────────────────────────────────────────────────
 
 @router.get("/api/feed/", response_model=list[PostResponse])
 async def get_feed(
     cursor: Optional[str] = Query(default=None),
     limit: int = Query(default=20, le=50),
+    current_user: Optional[User] = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
     query = (
@@ -52,7 +70,8 @@ async def get_feed(
         if cp_post:
             query = query.where(Post.created_at < cp_post.created_at)
     result = await db.execute(query)
-    return list(result.scalars().all())
+    posts = list(result.scalars().all())
+    return await _with_likes(posts, current_user.id if current_user else None, db)
 
 
 @router.get("/api/feed/following", response_model=list[PostResponse])
@@ -81,7 +100,8 @@ async def get_following_feed(
             query = query.where(Post.created_at < cp_post.created_at)
 
     result = await db.execute(query)
-    return list(result.scalars().all())
+    posts = list(result.scalars().all())
+    return await _with_likes(posts, current_user.id, db)
 
 
 # ─── Search ───────────────────────────────────────────────────────────────────
@@ -133,8 +153,14 @@ async def create_post(
 
 
 @router.get("/api/posts/{post_id}", response_model=PostResponse)
-async def get_post(post_id: UUID, db: AsyncSession = Depends(get_db)):
-    return await _get_active_post(post_id, db)
+async def get_post(
+    post_id: UUID,
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+):
+    post = await _get_active_post(post_id, db)
+    results = await _with_likes([post], current_user.id if current_user else None, db)
+    return results[0]
 
 
 @router.put("/api/posts/{post_id}", response_model=PostResponse)
@@ -174,22 +200,38 @@ async def delete_post(
 # ─── Лайки ───────────────────────────────────────────────────────────────────
 
 @router.post("/api/posts/{post_id}/like", status_code=status.HTTP_204_NO_CONTENT)
-async def toggle_like(
+async def add_like(
     post_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     post = await _get_active_post(post_id, db)
-    like_result = await db.execute(
+    existing = (await db.execute(
         select(Like).where(Like.post_id == post_id, Like.user_id == current_user.id)
-    )
-    existing = like_result.scalar_one_or_none()
+    )).scalar_one_or_none()
     if existing:
-        await db.delete(existing)
-        post.likes_count = max(0, post.likes_count - 1)
-    else:
-        db.add(Like(post_id=post_id, user_id=current_user.id))
-        post.likes_count += 1
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already liked")
+    db.add(Like(post_id=post_id, user_id=current_user.id))
+    post.likes_count += 1
+    await db.flush()
+    from app.services.notification_db import create_notification
+    await create_notification(post.author_id, current_user.id, "like", post_id, "post", db)
+
+
+@router.delete("/api/posts/{post_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_like(
+    post_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    post = await _get_active_post(post_id, db)
+    existing = (await db.execute(
+        select(Like).where(Like.post_id == post_id, Like.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Like not found")
+    await db.delete(existing)
+    post.likes_count = max(0, post.likes_count - 1)
     await db.flush()
 
 
@@ -218,6 +260,8 @@ async def add_comment(
     db.add(comment)
     post.comments_count += 1
     await db.flush()
+    from app.services.notification_db import create_notification
+    await create_notification(post.author_id, current_user.id, "comment", post_id, "post", db)
     return comment
 
 

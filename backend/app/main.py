@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.routers import auth, profile, poi, routes, posts, gamification, moderation, uploads
+from app.routers import notifications
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ app.include_router(posts.router)
 app.include_router(gamification.router)
 app.include_router(moderation.router)
 app.include_router(uploads.router)
+app.include_router(notifications.router)
 
 
 # ─── Error handlers ───────────────────────────────────────────────────────────

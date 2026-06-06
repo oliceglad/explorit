@@ -63,6 +63,8 @@ async def follow_user(
     if not existing.scalar_one_or_none():
         db.add(Follow(follower_id=current_user.id, following_id=user_id))
         await db.flush()
+        from app.services.notification_db import create_notification
+        await create_notification(user_id, current_user.id, "follow", current_user.id, "user", db)
 
 
 @router.delete("/follow/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

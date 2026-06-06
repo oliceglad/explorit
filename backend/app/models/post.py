@@ -28,9 +28,9 @@ class Post(Base):
 
     author = relationship("User", back_populates="posts")
     route = relationship("Route", back_populates="posts")
-    comments = relationship("Comment", back_populates="post", lazy="select")
-    likes = relationship("Like", back_populates="post", lazy="select")
-    reports = relationship("Report", back_populates="post", lazy="select")
+    comments = relationship("Comment", back_populates="post", lazy="select", passive_deletes=True)
+    likes = relationship("Like", back_populates="post", lazy="select", passive_deletes=True)
+    reports = relationship("Report", back_populates="post", lazy="select", passive_deletes=True)
 
     __table_args__ = (
         # GIN index for Russian full-text search
