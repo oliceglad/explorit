@@ -3,11 +3,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
+from sqlalchemy import select, text, func
 
 from app.database import get_db
 from app.dependencies import get_current_user, get_optional_user
-from app.models.post import Post, Comment, Like, Report, POST_STATUS_ACTIVE, POST_STATUS_BLOCKED
+from app.models.post import Post, Comment, Like, CommentLike, Report, POST_STATUS_ACTIVE, POST_STATUS_BLOCKED
 from app.models.user import User
 from app.schemas.post import (
     PostResponse, CreatePostRequest, UpdatePostRequest,
@@ -29,6 +29,36 @@ async def _get_active_post(post_id: UUID, db: AsyncSession) -> Post:
     if post.status == POST_STATUS_BLOCKED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
     return post
+
+
+async def _with_comment_likes(comments: list[Comment], user_id, db: AsyncSession) -> list[CommentResponse]:
+    if not comments:
+        return []
+    comment_ids = [c.id for c in comments]
+    liked_ids: set = set()
+    if user_id:
+        result = await db.execute(
+            select(CommentLike.comment_id).where(
+                CommentLike.user_id == user_id,
+                CommentLike.comment_id.in_(comment_ids),
+            )
+        )
+        liked_ids = {row[0] for row in result.fetchall()}
+    counts_result = await db.execute(
+        select(CommentLike.comment_id, func.count())
+        .where(CommentLike.comment_id.in_(comment_ids))
+        .group_by(CommentLike.comment_id)
+    )
+    likes_count_map = {row[0]: row[1] for row in counts_result.fetchall()}
+    return [
+        CommentResponse.model_validate(c).model_copy(
+            update={
+                "is_liked": (c.id in liked_ids) if user_id else None,
+                "likes_count": likes_count_map.get(c.id, 0),
+            }
+        )
+        for c in comments
+    ]
 
 
 async def _with_likes(posts: list[Post], user_id, db: AsyncSession) -> list[PostResponse]:
@@ -152,6 +182,30 @@ async def create_post(
     return post
 
 
+@router.get("/api/posts/by-user/{author_id}", response_model=list[PostResponse])
+async def get_posts_by_user(
+    author_id: UUID,
+    current_user: Optional[User] = Depends(get_optional_user),
+    limit: int = Query(default=20, le=50),
+    cursor: Optional[str] = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    query = (
+        select(Post)
+        .where(Post.author_id == author_id, Post.status == POST_STATUS_ACTIVE)
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+    )
+    if cursor:
+        cp = await db.execute(select(Post).where(Post.id == UUID(cursor)))
+        cp_post = cp.scalar_one_or_none()
+        if cp_post:
+            query = query.where(Post.created_at < cp_post.created_at)
+    result = await db.execute(query)
+    posts = list(result.scalars().all())
+    return await _with_likes(posts, current_user.id if current_user else None, db)
+
+
 @router.get("/api/posts/{post_id}", response_model=PostResponse)
 async def get_post(
     post_id: UUID,
@@ -238,14 +292,19 @@ async def remove_like(
 # ─── Комментарии ─────────────────────────────────────────────────────────────
 
 @router.get("/api/posts/{post_id}/comments", response_model=list[CommentResponse])
-async def get_comments(post_id: UUID, db: AsyncSession = Depends(get_db)):
+async def get_comments(
+    post_id: UUID,
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+):
     await _get_active_post(post_id, db)
     result = await db.execute(
         select(Comment)
         .where(Comment.post_id == post_id, Comment.is_deleted == "0")
         .order_by(Comment.created_at)
     )
-    return list(result.scalars().all())
+    comments = list(result.scalars().all())
+    return await _with_comment_likes(comments, current_user.id if current_user else None, db)
 
 
 @router.post("/api/posts/{post_id}/comment", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
@@ -307,6 +366,54 @@ async def delete_comment(
     comment.is_deleted = "1"
     comment.content = "[удалено]"
     post.comments_count = max(0, post.comments_count - 1)
+    await db.flush()
+
+
+# ─── Лайки комментариев ──────────────────────────────────────────────────────
+
+@router.post("/api/posts/{post_id}/comments/{comment_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+async def like_comment(
+    post_id: UUID,
+    comment_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_active_post(post_id, db)
+    result = await db.execute(
+        select(Comment).where(Comment.id == comment_id, Comment.post_id == post_id)
+    )
+    comment = result.scalar_one_or_none()
+    if not comment or comment.is_deleted == "1":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+    existing = (await db.execute(
+        select(CommentLike).where(CommentLike.comment_id == comment_id, CommentLike.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already liked")
+    db.add(CommentLike(comment_id=comment_id, user_id=current_user.id))
+    await db.flush()
+
+
+@router.delete("/api/posts/{post_id}/comments/{comment_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+async def unlike_comment(
+    post_id: UUID,
+    comment_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_active_post(post_id, db)
+    result = await db.execute(
+        select(Comment).where(Comment.id == comment_id, Comment.post_id == post_id)
+    )
+    comment = result.scalar_one_or_none()
+    if not comment or comment.is_deleted == "1":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+    existing = (await db.execute(
+        select(CommentLike).where(CommentLike.comment_id == comment_id, CommentLike.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Like not found")
+    await db.delete(existing)
     await db.flush()
 
 

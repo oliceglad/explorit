@@ -18,6 +18,7 @@ class Route(Base):
     description = Column(Text, nullable=True)
     geometry = Column(Geometry("LINESTRING", srid=4326, spatial_index=False), nullable=True)
     points = Column(JSONB, nullable=False, default=list)
+    polyline = Column(JSONB, nullable=True)
     distance_m = Column(Float, nullable=True)
     duration_min = Column(Integer, nullable=True)
     transport_mode = Column(String(32), nullable=False, default="walking")

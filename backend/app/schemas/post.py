@@ -40,6 +40,8 @@ class CommentResponse(BaseModel):
     post_id: UUID
     author_id: UUID
     content: str
+    likes_count: int = 0
+    is_liked: Optional[bool] = None
     created_at: datetime
     updated_at: datetime
 

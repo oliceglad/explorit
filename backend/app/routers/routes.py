@@ -138,5 +138,7 @@ async def generate(
         user_id=str(current_user.id),
         db=db,
         redis_client=redis_client,
+        waypoints=[w.model_dump() for w in body.waypoints] if body.waypoints else None,
+        surprise_me=body.surprise_me,
     )
     return route

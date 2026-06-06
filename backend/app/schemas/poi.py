@@ -26,3 +26,15 @@ class POIListParams(BaseModel):
     radius_km: float = 5.0
     categories: Optional[list[str]] = None
     limit: int = 20
+
+
+class OverpassPOIResponse(BaseModel):
+    id: str
+    name: str
+    category: str
+    lat: float
+    lon: float
+    address: Optional[str] = None
+    opening_hours: Optional[str] = None
+    website: Optional[str] = None
+    phone: Optional[str] = None

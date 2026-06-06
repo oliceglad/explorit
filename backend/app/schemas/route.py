@@ -13,6 +13,13 @@ class RoutePoint(BaseModel):
     name: str
 
 
+class WaypointInput(BaseModel):
+    id: str
+    name: str
+    lat: float
+    lon: float
+
+
 class RouteResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -21,6 +28,7 @@ class RouteResponse(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     points: List[Any] = []
+    polyline: Optional[List[Any]] = None
     distance_m: Optional[float] = None
     duration_min: Optional[int] = None
     transport_mode: str
@@ -38,6 +46,8 @@ class GenerateRouteRequest(BaseModel):
     categories: Optional[List[str]] = None
     transport_mode: str = "walking"
     max_duration_min: int = 120
+    waypoints: Optional[List[WaypointInput]] = None
+    surprise_me: bool = False
 
 
 class ShareRouteResponse(BaseModel):

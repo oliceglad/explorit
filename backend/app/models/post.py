@@ -65,6 +65,15 @@ class Like(Base):
     post = relationship("Post", back_populates="likes")
 
 
+class CommentLike(Base):
+    __tablename__ = "comment_likes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    comment_id = Column(UUID(as_uuid=True), ForeignKey("comments.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class Report(Base):
     __tablename__ = "reports"
 

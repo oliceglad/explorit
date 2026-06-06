@@ -26,6 +26,9 @@ class UserPublicResponse(BaseModel):
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
     interests: List[str] = []
+    followers_count: int = 0
+    following_count: int = 0
+    is_following: Optional[bool] = None
 
 
 class UpdateProfileRequest(BaseModel):
