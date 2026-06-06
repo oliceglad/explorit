@@ -45,7 +45,7 @@ export const authApi = {
 
 // Routes
 export const routesApi = {
-  generate: (params: { lat: number; lon: number; radius_km: number; categories?: string[]; transport_mode?: string; max_points?: number }) =>
+  generate: (params: { lat: number; lon: number; radius_km: number; categories?: string[]; transport_mode?: string; max_points?: number; waypoints?: { id: string; name: string; lat: number; lon: number }[]; surprise_me?: boolean }) =>
     api.post('/routes/generate', params),
   catalog: (limit = 20, offset = 0) => api.get('/routes/catalog', { params: { limit, offset } }),
   get: (id: string) => api.get(`/routes/${id}`),
@@ -59,8 +59,16 @@ export const routesApi = {
 // POI
 export const poiApi = {
   list: (lat: number, lon: number, radius_km = 5, categories?: string[]) =>
-    api.get('/poi/', { params: { lat, lon, radius_km, categories } }),
+    api.get('/poi/', { params: { lat, lon, radius_km, categories: categories?.join(',') } }),
   get: (id: string) => api.get(`/poi/${id}`),
+};
+
+// Geo / geocoding
+export const geoApi = {
+  search: (q: string, lat?: number, lon?: number) =>
+    api.get('/geo/search', { params: { q, lat, lon } }),
+  interests: (text: string) =>
+    api.post('/geo/interests', { text }),
 };
 
 // Feed & Posts
@@ -82,6 +90,12 @@ export const postsApi = {
   comments: (id: string) => api.get(`/posts/${id}/comments`),
   addComment: (id: string, content: string) => api.post(`/posts/${id}/comment`, { content }),
   deleteComment: (postId: string, commentId: string) => api.delete(`/posts/${postId}/comments/${commentId}`),
+  updateComment: (postId: string, commentId: string, content: string) =>
+    api.put(`/posts/${postId}/comments/${commentId}`, { content }),
+  likeComment: (postId: string, commentId: string) =>
+    api.post(`/posts/${postId}/comments/${commentId}/like`),
+  unlikeComment: (postId: string, commentId: string) =>
+    api.delete(`/posts/${postId}/comments/${commentId}/like`),
 };
 
 // Profile
@@ -92,6 +106,7 @@ export const profileApi = {
   follow: (id: string) => api.post(`/profile/follow/${id}`),
   unfollow: (id: string) => api.delete(`/profile/follow/${id}`),
   archive: () => api.get('/profile/me/archive'),
+  posts: (id: string, cursor?: string) => api.get(`/posts/by-user/${id}`, { params: { cursor } }),
 };
 
 // Gamification

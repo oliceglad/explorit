@@ -355,8 +355,8 @@ function PostMenu({
 
 // ─── Post card ────────────────────────────────────────────────────────────────
 
-function PostCard({ post, onLike, onComment, onMore }: {
-  post: Post; onLike: () => void; onComment: () => void; onMore: () => void;
+function PostCard({ post, onLike, onComment, onMore, onAuthorPress }: {
+  post: Post; onLike: () => void; onComment: () => void; onMore: () => void; onAuthorPress: () => void;
 }) {
   const c = useTheme();
   const router = useRouter();
@@ -378,13 +378,15 @@ function PostCard({ post, onLike, onComment, onMore }: {
       activeOpacity={0.9}
     >
       <View style={styles.cardHeader}>
-        <Avatar name={post.author?.nickname ?? '?'} uri={post.author?.avatar_url} size={36} />
-        <View style={{ flex: 1, marginLeft: 10 }}>
+        <TouchableOpacity onPress={onAuthorPress} activeOpacity={0.7}>
+          <Avatar name={post.author?.nickname ?? '?'} uri={post.author?.avatar_url} size={36} />
+        </TouchableOpacity>
+        <TouchableOpacity style={{ flex: 1, marginLeft: 10 }} onPress={onAuthorPress} activeOpacity={0.7}>
           <Text style={[Typography.bodyStrong, { color: c.text1 }]}>
             @{post.author?.nickname ?? 'unknown'}
           </Text>
           <Text style={[Typography.micro, { color: c.text3 }]}>{ago}</Text>
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity onPress={onMore} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <MoreIcon color={c.text3} />
         </TouchableOpacity>
@@ -664,6 +666,11 @@ export default function FeedScreen() {
               onLike={() => handleLike(item.id)}
               onComment={() => router.push(`/post/${item.id}`)}
               onMore={() => setMenu({ postId: item.id, isOwn: item.author_id === user?.id })}
+              onAuthorPress={() =>
+                item.author_id === user?.id
+                  ? router.push('/(tabs)/profile')
+                  : router.push(`/user/${item.author_id}`)
+              }
             />
           )}
           ListEmptyComponent={
