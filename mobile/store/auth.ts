@@ -17,6 +17,7 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isHydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, nickname: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -27,6 +28,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoading: false,
   isAuthenticated: false,
+  isHydrated: false,
  
 
   login: async (email, password) => {
@@ -62,14 +64,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   loadUser: async () => {
-    const token = await getItemAsync('access_token');
-    if (!token) return;
     try {
-      const { data: user } = await authApi.me();
-      set({ user, isAuthenticated: true });
-    } catch {
-      await deleteItemAsync('access_token');
-      await deleteItemAsync('refresh_token');
+      const token = await getItemAsync('access_token');
+      if (!token) return;
+      try {
+        const { data: user } = await authApi.me();
+        set({ user, isAuthenticated: true });
+      } catch {
+        await deleteItemAsync('access_token');
+        await deleteItemAsync('refresh_token');
+      }
+    } finally {
+      set({ isHydrated: true });
     }
   },
 }));

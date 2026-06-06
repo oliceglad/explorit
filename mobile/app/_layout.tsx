@@ -24,14 +24,17 @@ export default function RootLayout() {
     InstrumentSerif_400Regular,
   });
   const loadUser = useAuthStore((s) => s.loadUser);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
 
   useEffect(() => {
-    loadUser().finally(() => {
-      if (fontsLoaded) SplashScreen.hideAsync();
-    });
-  }, [fontsLoaded]);
+    loadUser();
+  }, []);
 
-  if (!fontsLoaded) return null;
+  useEffect(() => {
+    if (fontsLoaded && isHydrated) SplashScreen.hideAsync();
+  }, [fontsLoaded, isHydrated]);
+
+  if (!fontsLoaded || !isHydrated) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

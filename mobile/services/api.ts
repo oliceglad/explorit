@@ -77,6 +77,7 @@ export const postsApi = {
   update: (id: string, content: string) => api.put(`/posts/${id}`, { content }),
   delete: (id: string) => api.delete(`/posts/${id}`),
   like: (id: string) => api.post(`/posts/${id}/like`),
+  unlike: (id: string) => api.delete(`/posts/${id}/like`),
   report: (id: string, reason: string) => api.post(`/posts/${id}/report`, { reason }),
   comments: (id: string) => api.get(`/posts/${id}/comments`),
   addComment: (id: string, content: string) => api.post(`/posts/${id}/comment`, { content }),
@@ -98,6 +99,13 @@ export const gamificationApi = {
   progress: () => api.get('/gamification/progress'),
   leaderboard: () => api.get('/gamification/leaderboard'),
   challenges: () => api.get('/gamification/challenges'),
+};
+
+// Notifications
+export const notificationsApi = {
+  list: () => api.get('/notifications/'),
+  unreadCount: () => api.get('/notifications/unread-count'),
+  readAll: () => api.post('/notifications/read-all'),
 };
 
 // Uploads

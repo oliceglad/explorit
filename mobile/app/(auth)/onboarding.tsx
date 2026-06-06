@@ -326,6 +326,12 @@ export default function Onboarding() {
         );
       })}
 
+      {/* Map dimming overlay */}
+      <View
+        style={[StyleSheet.absoluteFill, { backgroundColor: c.bg, opacity: 0.52 }]}
+        pointerEvents="none"
+      />
+
       {/* Logo */}
       <View style={styles.logoRow}>
         <View style={[styles.logoSquare, { backgroundColor: c.text1 }]} />
