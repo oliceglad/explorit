@@ -55,6 +55,7 @@ class UserProgress(Base):
     level = Column(Integer, nullable=False, default=1)
     routes_completed = Column(Integer, nullable=False, default=0)
     places_discovered = Column(Integer, nullable=False, default=0)
+    distance_walked_km = Column(Float, nullable=False, default=0.0)
     current_streak = Column(Integer, nullable=False, default=0)
     last_activity_date = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

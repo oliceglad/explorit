@@ -38,6 +38,7 @@ async def get_progress(
         level_name=level_name(progress.level),
         routes_completed=progress.routes_completed,
         places_discovered=progress.places_discovered,
+        distance_walked_km=progress.distance_walked_km,
         current_streak=progress.current_streak,
         last_activity_date=progress.last_activity_date,
     )

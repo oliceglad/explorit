@@ -10,7 +10,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, get_optional_user, get_redis
 from app.models.route import Route
 from app.models.user import User
-from app.schemas.route import RouteResponse, GenerateRouteRequest, ShareRouteResponse
+from app.schemas.route import RouteResponse, GenerateRouteRequest, ShareRouteResponse, UpdateRouteRequest
 from app.services.route_service import generate_route
 
 router = APIRouter(prefix="/api/routes", tags=["routes"])
@@ -66,6 +66,35 @@ async def delete_route(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your route")
     await db.delete(route)
     await db.flush()
+
+
+@router.patch("/{route_id}", response_model=RouteResponse)
+async def update_route(
+    route_id: UUID,
+    body: UpdateRouteRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Route).where(Route.id == route_id))
+    route = result.scalar_one_or_none()
+    if not route:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
+    if route.author_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your route")
+    if body.title is not None:
+        route.title = body.title
+    if body.description is not None:
+        route.description = body.description
+    if body.photo_url is not None:
+        route.photo_url = body.photo_url
+    if body.photos is not None:
+        route.photos = body.photos
+    if body.is_public is not None:
+        route.is_public = body.is_public
+    if body.is_saved is not None:
+        route.is_saved = body.is_saved
+    await db.flush()
+    return route
 
 
 @router.post("/{route_id}/save", response_model=RouteResponse)

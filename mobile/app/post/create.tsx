@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, SafeAreaView, TextInput,
   TouchableOpacity, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { Typography, Spacing, Radius } from '@/constants/typography';
 import { Avatar } from '@/components/ui/Avatar';
@@ -16,6 +16,7 @@ export default function CreatePost() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
+  const { route_id, route_title } = useLocalSearchParams<{ route_id?: string; route_title?: string }>();
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +24,7 @@ export default function CreatePost() {
     if (!content.trim()) return;
     setLoading(true);
     try {
-      await postsApi.create(content.trim());
+      await postsApi.create(content.trim(), undefined, route_id || undefined);
       router.back();
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.detail || 'Не удалось опубликовать');
@@ -50,6 +51,15 @@ export default function CreatePost() {
             <Text style={[Typography.micro, { color: c.text3 }]}>Видят все</Text>
           </View>
         </View>
+
+        {route_title ? (
+          <View style={[styles.routeBadge, { backgroundColor: c.surface2, borderColor: c.border }]}>
+            <Text style={{ fontSize: 14 }}>🗺</Text>
+            <Text style={[Typography.cap, { color: c.text2, marginLeft: 6, flex: 1 }]} numberOfLines={1}>
+              {route_title}
+            </Text>
+          </View>
+        ) : null}
 
         <TextInput
           style={[styles.textArea, { color: c.text1, fontFamily: 'Manrope_400Regular' }]}
@@ -84,6 +94,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.screen, paddingVertical: 12, borderBottomWidth: 1 },
   identity: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.screen, paddingVertical: 16 },
+  routeBadge: { flexDirection: 'row', alignItems: 'center', marginHorizontal: Spacing.screen, marginBottom: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.sm, borderWidth: 1 },
   textArea: { flex: 1, paddingHorizontal: Spacing.screen, fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
   toolbar: { flexDirection: 'row', paddingHorizontal: Spacing.screen, paddingVertical: 12, borderTopWidth: 1, gap: 20 },
   toolBtn: { flexDirection: 'row', alignItems: 'center' },

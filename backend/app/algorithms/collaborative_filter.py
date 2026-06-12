@@ -1,13 +1,12 @@
 import json
-from typing import Any
-from uuid import UUID
 
 import numpy as np
 import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
+from sqlalchemy import text
 
 _CF_MATRIX_KEY = "cf_matrix"
+_CF_MATRIX_TTL = 3600  # обновляем матрицу раз в час
 _TOP_SIMILAR_USERS = 10
 _MAX_BOOST = 0.2
 
@@ -23,7 +22,7 @@ async def get_cf_boost(
     if matrix_json:
         matrix_data = json.loads(matrix_json)
     else:
-        matrix_data = await _build_matrix(db)
+        matrix_data = await _build_matrix(db, redis_client)
 
     if not matrix_data or user_id not in matrix_data.get("user_index", {}):
         return {pid: 0.0 for pid in poi_ids}
@@ -66,7 +65,7 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / denom)
 
 
-async def _build_matrix(db: AsyncSession) -> dict:
+async def _build_matrix(db: AsyncSession, redis_client: aioredis.Redis) -> dict:
     result = await db.execute(text(
         "SELECT user_id::text, poi_id::text, COUNT(*) as cnt FROM interactions GROUP BY user_id, poi_id"
     ))
@@ -76,16 +75,19 @@ async def _build_matrix(db: AsyncSession) -> dict:
         return {}
 
     user_ids = list({r[0] for r in rows})
-    poi_ids = list({r[1] for r in rows})
+    poi_ids_list = list({r[1] for r in rows})
     user_index = {uid: i for i, uid in enumerate(user_ids)}
-    poi_index = {pid: i for i, pid in enumerate(poi_ids)}
+    poi_index = {pid: i for i, pid in enumerate(poi_ids_list)}
 
-    matrix = np.zeros((len(user_ids), len(poi_ids)))
+    matrix = np.zeros((len(user_ids), len(poi_ids_list)))
     for uid, pid, cnt in rows:
         matrix[user_index[uid]][poi_index[pid]] = float(cnt)
 
-    return {
+    matrix_data = {
         "user_index": user_index,
         "poi_index": poi_index,
         "matrix": matrix.tolist(),
     }
+    # Кешируем в Redis на 1 час
+    await redis_client.setex(_CF_MATRIX_KEY, _CF_MATRIX_TTL, json.dumps(matrix_data))
+    return matrix_data

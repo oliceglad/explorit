@@ -51,6 +51,8 @@ export const routesApi = {
   get: (id: string) => api.get(`/routes/${id}`),
   save: (id: string) => api.post(`/routes/${id}/save`),
   publish: (id: string) => api.post(`/routes/${id}/publish`),
+  update: (id: string, data: { title?: string; description?: string; photo_url?: string; photos?: string[]; is_public?: boolean; is_saved?: boolean }) =>
+    api.patch(`/routes/${id}`, data),
   share: (id: string) => api.post(`/routes/${id}/share`),
   list: () => api.get('/routes/'),
   delete: (id: string) => api.delete(`/routes/${id}`),

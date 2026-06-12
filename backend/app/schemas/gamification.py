@@ -15,6 +15,7 @@ class UserProgressResponse(BaseModel):
     level_name: str
     routes_completed: int
     places_discovered: int
+    distance_walked_km: float = 0.0
     current_streak: int
     last_activity_date: Optional[datetime] = None
 

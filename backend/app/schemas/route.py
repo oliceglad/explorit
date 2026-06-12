@@ -27,6 +27,8 @@ class RouteResponse(BaseModel):
     author_id: UUID
     title: Optional[str] = None
     description: Optional[str] = None
+    photo_url: Optional[str] = None
+    photos: Optional[List[str]] = None
     points: List[Any] = []
     polyline: Optional[List[Any]] = None
     distance_m: Optional[float] = None
@@ -36,6 +38,15 @@ class RouteResponse(BaseModel):
     is_saved: bool
     invite_link: Optional[str] = None
     created_at: datetime
+
+
+class UpdateRouteRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    photos: Optional[List[str]] = None
+    is_public: Optional[bool] = None
+    is_saved: Optional[bool] = None
 
 
 class GenerateRouteRequest(BaseModel):

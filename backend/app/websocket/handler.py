@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.websocket.connection_manager import manager
 from app.models.session import GroupSession, SessionMember
 from app.models.route import Route
+from app.models.gamification import UserProgress, XP_REWARDS, xp_to_level
 from app.utils.jwt import decode_token
 from app.algorithms.haversine import haversine
 
@@ -135,16 +136,37 @@ async def handle_session(
                                           route_points[i + 1]["lat"], route_points[i + 1]["lon"])
                                 for i in range(len(route_points) - 1)
                             )
+                            distance_km = round(total_dist / 1000, 2)
+                            xp_earned = XP_REWARDS["route_completed"] + XP_REWARDS["new_place_discovered"] * len(route_points)
+
+                            # Persist gamification progress
+                            prog_result = await db.execute(
+                                select(UserProgress).where(UserProgress.user_id == user_id)
+                            )
+                            progress = prog_result.scalar_one_or_none()
+                            if not progress:
+                                progress = UserProgress(user_id=user_id)
+                                db.add(progress)
+                            progress.xp += xp_earned
+                            progress.level = xp_to_level(progress.xp)
+                            progress.routes_completed += 1
+                            progress.distance_walked_km = round(
+                                (progress.distance_walked_km or 0.0) + distance_km, 2
+                            )
+                            from datetime import datetime
+                            progress.last_activity_date = datetime.utcnow()
+
+                            session.is_active = False
+                            await db.commit()
+
                             await manager.broadcast(str(session.id), {
                                 "type": "route_completed",
                                 "payload": {
-                                    "distance_km": round(total_dist / 1000, 2),
+                                    "distance_km": distance_km,
                                     "duration_min": 0,
-                                    "total_xp": 100 + 30 * len(route_points),
+                                    "total_xp": xp_earned,
                                 },
                             })
-                            session.is_active = False
-                            await db.commit()
 
             elif msg_type == "leave":
                 break

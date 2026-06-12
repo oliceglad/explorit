@@ -24,6 +24,8 @@ class Route(Base):
     transport_mode = Column(String(32), nullable=False, default="walking")
     is_public = Column(Boolean, nullable=False, default=False)
     is_saved = Column(Boolean, nullable=False, default=False)
+    photo_url = Column(String(512), nullable=True)
+    photos = Column(JSONB, nullable=True, default=list)
     invite_link = Column(String(64), nullable=True, unique=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
