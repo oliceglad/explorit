@@ -113,10 +113,16 @@ async def startup():
     await init_db()
     redis_client = get_redis_pool()
     asyncio.create_task(_redis_pubsub_listener(redis_client))
-    try:
-        await ensure_bucket_exists()
-    except Exception as e:
-        logger.warning("S3 bucket check failed on startup: %s", e)
+    
+    async def safe_ensure_bucket():
+        try:
+            await asyncio.wait_for(ensure_bucket_exists(), timeout=10.0)
+        except asyncio.TimeoutError:
+            logger.warning("S3 bucket check timed out on startup")
+        except Exception as e:
+            logger.warning("S3 bucket check failed on startup: %s", e)
+
+    asyncio.create_task(safe_ensure_bucket())
 
 
 async def _redis_pubsub_listener(redis_client):

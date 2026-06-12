@@ -77,3 +77,27 @@ docker-compose.override.yml
 *.swp
 *.swo
 *~
+
+# --- Mobile (Expo / React Native) ---
+.expo/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.env*.local
+*.tsbuildinfo
+mobile/ios/
+mobile/android/
+
+
+design_handoff_explorit
+instrucion.md

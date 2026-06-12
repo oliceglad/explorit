@@ -136,7 +136,8 @@ async def generate_route(
         selected = pool
 
     points_raw = [
-        {"lat": p.lat, "lon": p.lon, "id": str(p.id), "score": s, "name": p.name, "is_surprise": False}
+        {"lat": p.lat, "lon": p.lon, "id": str(p.id), "score": s, "name": p.name,
+         "category": getattr(p, "category", None), "is_surprise": False}
         for p, s in selected
     ]
 
@@ -146,7 +147,7 @@ async def generate_route(
         points_raw = [p for p in points_raw if p["id"] not in wp_set]
         forced = [
             {"lat": w["lat"], "lon": w["lon"], "id": w["id"], "score": 9999.0,
-             "name": w["name"], "is_surprise": False}
+             "name": w["name"], "category": None, "is_surprise": False}
             for w in waypoints
         ]
         remaining_slots = max(0, max_points - len(forced))
@@ -162,6 +163,7 @@ async def generate_route(
                 "id": str(uuid.uuid4()),
                 "score": 0.0,
                 "name": "Секретное место",
+                "category": None,
                 "is_surprise": True,
             })
         except Exception:
@@ -178,6 +180,7 @@ async def generate_route(
             "lat": p["lat"],
             "lon": p["lon"],
             "name": p["name"],
+            "category": p.get("category"),
             "is_surprise": p.get("is_surprise", False),
         }
         for i, p in enumerate(optimized)
