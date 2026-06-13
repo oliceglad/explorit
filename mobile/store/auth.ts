@@ -6,8 +6,10 @@ interface User {
   id: string;
   email: string;
   nickname: string;
+  full_name?: string;
   avatar_url?: string;
   bio?: string;
+  city?: string;
   interests: string[];
   is_active: boolean;
   is_admin: boolean;

@@ -11,9 +11,16 @@ from app.schemas.gamification import UserProgressResponse, LeaderboardEntry, Cha
 router = APIRouter(prefix="/api/gamification", tags=["gamification"])
 
 ACTIVE_CHALLENGES = [
-    Challenge(id="c1", title="Первооткрыватель", description="Посетите 3 новых места", xp_reward=150),
-    Challenge(id="c2", title="Социальная активность", description="Опубликуйте 5 постов", xp_reward=100),
-    Challenge(id="c3", title="Недельная серия", description="Выходите 7 дней подряд", xp_reward=200),
+    Challenge(id="c1",  title="Первооткрыватель",       description="Посетите 3 новых места на карте",          xp_reward=150),
+    Challenge(id="c2",  title="Социальная активность",   description="Опубликуйте 5 постов",                     xp_reward=100),
+    Challenge(id="c3",  title="Недельная серия",         description="Открывайте приложение 7 дней подряд",      xp_reward=200),
+    Challenge(id="c4",  title="Маршрутный мастер",       description="Создайте и сохраните 3 маршрута",          xp_reward=120),
+    Challenge(id="c5",  title="Марафонец",               description="Пройдите суммарно 10 км",                  xp_reward=80),
+    Challenge(id="c6",  title="Звезда ленты",            description="Получите 10 лайков на свои посты",         xp_reward=60),
+    Challenge(id="c7",  title="Навигатор",               description="Завершите кооперативный маршрут с другом", xp_reward=180),
+    Challenge(id="c8",  title="Летописец",               description="Добавьте описание к 3 маршрутам",          xp_reward=90),
+    Challenge(id="c9",  title="Дружелюбный",             description="Подпишитесь на 5 пользователей",           xp_reward=50),
+    Challenge(id="c10", title="Публичный исследователь", description="Опубликуйте 2 публичных маршрута",         xp_reward=130),
 ]
 
 

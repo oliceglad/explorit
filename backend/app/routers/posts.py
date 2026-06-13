@@ -173,8 +173,12 @@ async def create_post(
     post = Post(
         author_id=current_user.id,
         content=body.content,
-        photo_url=body.photo_url,
+        photo_url=body.photo_url or (body.photos[0] if body.photos else None),
+        photos=body.photos,
         route_id=body.route_id,
+        place_name=body.place_name,
+        place_lat=body.place_lat,
+        place_lon=body.place_lon,
     )
     db.add(post)
     await db.flush()

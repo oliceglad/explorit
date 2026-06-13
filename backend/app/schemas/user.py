@@ -11,8 +11,10 @@ class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
     nickname: str
+    full_name: Optional[str] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
+    city: Optional[str] = None
     interests: List[str] = []
     is_active: bool
     created_at: datetime
@@ -33,7 +35,9 @@ class UserPublicResponse(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     nickname: Optional[str] = None
+    full_name: Optional[str] = None
     bio: Optional[str] = None
+    city: Optional[str] = None
     avatar_url: Optional[str] = None
     interests: Optional[List[str]] = None
     push_token: Optional[str] = None

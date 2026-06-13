@@ -13,6 +13,10 @@ class PostResponse(BaseModel):
     route_id: Optional[UUID] = None
     content: str
     photo_url: Optional[str] = None
+    photos: Optional[list[str]] = None
+    place_name: Optional[str] = None
+    place_lat: Optional[float] = None
+    place_lon: Optional[float] = None
     likes_count: int
     comments_count: int
     reports_count: int
@@ -25,12 +29,17 @@ class PostResponse(BaseModel):
 class CreatePostRequest(BaseModel):
     content: str
     photo_url: Optional[str] = None
+    photos: Optional[list[str]] = None
     route_id: Optional[UUID] = None
+    place_name: Optional[str] = None
+    place_lat: Optional[float] = None
+    place_lon: Optional[float] = None
 
 
 class UpdatePostRequest(BaseModel):
     content: Optional[str] = None
     photo_url: Optional[str] = None
+    photos: Optional[list[str]] = None
 
 
 class CommentResponse(BaseModel):

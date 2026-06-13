@@ -9,18 +9,24 @@ import {
   SafeAreaView,
   ScrollView,
   TextInput,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Avatar } from "@/components/ui/Avatar";
 import { useTheme } from "@/hooks/useTheme";
 import { Typography, Spacing, Radius } from "@/constants/typography";
-import { routesApi } from "@/services/api";
+import { routesApi, proxyUrl } from "@/services/api";
 import Svg, { Path, Circle } from "react-native-svg";
 
 const TABS = ["Для тебя", "Рядом", "Топ недели", "Короткие", "Семейные"];
 
 interface Route {
   id: string;
+  author_id: string;
+  author_nickname?: string;
+  author_avatar_url?: string;
   title?: string;
+  photo_url?: string;
   distance_m?: number;
   duration_min?: number;
   transport_mode: string;
@@ -91,8 +97,17 @@ function EmptyIcon({ color, accent }: { color: string; accent: string }) {
 
 // ─── Route card ───────────────────────────────────────────────────────────────
 
-function RouteCard({ route, onPress }: { route: Route; onPress: () => void }) {
+function RouteCard({
+  route,
+  onPress,
+  onAuthorPress,
+}: {
+  route: Route;
+  onPress: () => void;
+  onAuthorPress: () => void;
+}) {
   const c = useTheme();
+  const [imgErr, setImgErr] = useState(false);
   const distKm = ((route.distance_m ?? 0) / 1000).toFixed(1);
 
   return (
@@ -101,9 +116,20 @@ function RouteCard({ route, onPress }: { route: Route; onPress: () => void }) {
       onPress={onPress}
       activeOpacity={0.85}
     >
+      {/* Cover photo */}
       <View style={[styles.routeThumb, { backgroundColor: c.surface2 }]}>
-        <RouteThumbIcon color={c.text2} accent={c.accent} />
+        {route.photo_url && !imgErr ? (
+          <Image
+            source={{ uri: proxyUrl(route.photo_url) }}
+            style={styles.routeThumbImg}
+            resizeMode="cover"
+            onError={() => setImgErr(true)}
+          />
+        ) : (
+          <RouteThumbIcon color={c.text2} accent={c.accent} />
+        )}
       </View>
+
       <View style={{ flex: 1, paddingLeft: 12 }}>
         <Text
           style={[Typography.bodyStrong, { color: c.text1 }]}
@@ -111,11 +137,30 @@ function RouteCard({ route, onPress }: { route: Route; onPress: () => void }) {
         >
           {route.title || "Маршрут"}
         </Text>
-        <Text style={[Typography.cap, { color: c.text2, marginTop: 3 }]}>
+        <Text style={[Typography.cap, { color: c.text2, marginTop: 2 }]}>
           {distKm} км · {route.duration_min ?? "?"} мин ·{" "}
           {route.transport_mode === "walking" ? "Пешком" : "Авто"}
         </Text>
+
+        {/* Author row */}
+        {route.author_nickname && (
+          <TouchableOpacity
+            style={styles.authorRow}
+            onPress={onAuthorPress}
+            hitSlop={{ top: 6, bottom: 6, left: 0, right: 12 }}
+          >
+            <Avatar
+              size={18}
+              name={route.author_nickname}
+              uri={proxyUrl(route.author_avatar_url)}
+            />
+            <Text style={[Typography.micro, { color: c.text3, marginLeft: 5 }]}>
+              {route.author_nickname}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
+
       <ChevronIcon color={c.text3} />
     </TouchableOpacity>
   );
@@ -219,7 +264,8 @@ export default function RoutesScreen() {
         renderItem={({ item }) => (
           <RouteCard
             route={item}
-            onPress={() => router.push(`/route/${item.id}`)}
+            onPress={() => router.push(`/explore/${item.id}`)}
+            onAuthorPress={() => router.push(`/user/${item.author_id}`)}
           />
         )}
         ListEmptyComponent={
@@ -278,6 +324,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
+  routeThumbImg: { width: "100%", height: "100%" },
+  authorRow: { flexDirection: "row", alignItems: "center", marginTop: 6 },
   empty: { alignItems: "center", paddingTop: 80 },
 });

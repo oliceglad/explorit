@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 import redis.asyncio as aioredis
 
 from app.database import get_db
@@ -23,7 +24,11 @@ async def get_catalog(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Route).where(Route.is_public == True).offset(offset).limit(limit)
+        select(Route)
+        .options(joinedload(Route.author))
+        .where(Route.is_public == True)
+        .offset(offset)
+        .limit(limit)
     )
     return list(result.scalars().all())
 
@@ -43,7 +48,9 @@ async def get_route(
     current_user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Route).where(Route.id == route_id))
+    result = await db.execute(
+        select(Route).options(joinedload(Route.author)).where(Route.id == route_id)
+    )
     route = result.scalar_one_or_none()
     if not route:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")

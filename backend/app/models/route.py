@@ -30,5 +30,13 @@ class Route(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    author = relationship("User", back_populates="routes")
+    author = relationship("User", back_populates="routes", lazy="select")
     posts = relationship("Post", back_populates="route", lazy="select")
+
+    @property
+    def author_nickname(self) -> str | None:
+        return self.author.nickname if self.author else None
+
+    @property
+    def author_avatar_url(self) -> str | None:
+        return self.author.avatar_url if self.author else None

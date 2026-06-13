@@ -43,7 +43,13 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="route/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="post/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="explore/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="user/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="edit-profile" options={{ presentation: 'card' }} />
+        <Stack.Screen name="settings" options={{ presentation: 'card' }} />
+        <Stack.Screen name="gamification" options={{ presentation: 'card' }} />
         <Stack.Screen name="coop/[code]" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="place-map" options={{ presentation: 'card' }} />
       </Stack>
     </GestureHandlerRootView>
   );

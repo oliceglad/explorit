@@ -4,7 +4,7 @@ import redis.asyncio as aioredis
 
 from app.database import get_db
 from app.dependencies import get_redis, get_current_user
-from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, RefreshRequest
+from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, RefreshRequest, ChangePasswordRequest
 from app.schemas.user import UserResponse
 from app.services.auth_service import register_user, login_user, store_refresh_token, refresh_tokens
 from app.models.user import User
@@ -51,3 +51,29 @@ async def refresh(
 @router.get("/me", response_model=UserResponse)
 async def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.utils.hashing import verify_password, hash_password
+    if not verify_password(body.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный текущий пароль")
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Пароль должен быть не менее 6 символов")
+    current_user.password_hash = hash_password(body.new_password)
+    await db.commit()
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    redis_client: aioredis.Redis = Depends(get_redis),
+):
+    await redis_client.delete(f"refresh:{current_user.id}")
+    await db.delete(current_user)
+    await db.commit()

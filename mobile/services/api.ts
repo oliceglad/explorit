@@ -34,6 +34,23 @@ api.interceptors.response.use(
 
 export default api;
 
+// File URL → backend proxy.
+// Handles three formats:
+//   1. Old Selectel full URL  → extract key, proxy
+//   2. Bare key (no scheme)   → proxy directly  (new MinIO uploads)
+//   3. Other http(s) URL      → return as-is    (external avatars etc.)
+const SELECTEL_PREFIX = 'https://s3.ru-7.storage.selcloud.ru/explorit/';
+export function proxyUrl(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith(SELECTEL_PREFIX)) {
+    return `${API_BASE_URL}/uploads/proxy/${url.slice(SELECTEL_PREFIX.length)}`;
+  }
+  if (!url.startsWith('http')) {
+    return `${API_BASE_URL}/uploads/proxy/${url}`;
+  }
+  return url;
+}
+
 // Auth
 export const authApi = {
   register: (email: string, nickname: string, password: string) =>
@@ -41,6 +58,9 @@ export const authApi = {
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
   me: () => api.get('/auth/me'),
+  changePassword: (current_password: string, new_password: string) =>
+    api.post('/auth/change-password', { current_password, new_password }),
+  deleteAccount: () => api.delete('/auth/me'),
 };
 
 // Routes
@@ -81,8 +101,8 @@ export const feedApi = {
 };
 
 export const postsApi = {
-  create: (content: string, photo_url?: string, route_id?: string) =>
-    api.post('/posts/', { content, photo_url, route_id }),
+  create: (content: string, photo_url?: string, route_id?: string, photos?: string[], place_name?: string, place_lat?: number, place_lon?: number) =>
+    api.post('/posts/', { content, photo_url, route_id, photos, place_name, place_lat, place_lon }),
   get: (id: string) => api.get(`/posts/${id}`),
   update: (id: string, content: string) => api.put(`/posts/${id}`, { content }),
   delete: (id: string) => api.delete(`/posts/${id}`),

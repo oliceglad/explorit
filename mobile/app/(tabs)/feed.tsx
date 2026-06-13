@@ -7,9 +7,10 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { Typography, Spacing, Radius } from '@/constants/typography';
 import { Avatar } from '@/components/ui/Avatar';
-import { feedApi, postsApi, profileApi, notificationsApi } from '@/services/api';
+import { feedApi, postsApi, profileApi, notificationsApi, proxyUrl } from '@/services/api';
 import { useAuthStore } from '@/store/auth';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { PhotoGrid } from '@/components/post/PhotoGrid';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -145,6 +146,25 @@ function UserPlusIcon({ color }: { color: string }) {
   );
 }
 
+function MapPinIcon({ color }: { color: string }) {
+  return (
+    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+      <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke={color} strokeWidth={1.75} />
+      <Circle cx={12} cy={10} r={3} stroke={color} strokeWidth={1.75} />
+    </Svg>
+  );
+}
+
+function RouteSmallIcon({ color }: { color: string }) {
+  return (
+    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+      <Path d="M7 17c0-3.5 2-5.5 5-5.5S17 9 17 5.5" stroke={color} strokeWidth={1.75} strokeLinecap="round" />
+      <Circle cx={7} cy={17} r={2} stroke={color} strokeWidth={1.75} />
+      <Circle cx={17} cy={5.5} r={2} stroke={color} strokeWidth={1.75} />
+    </Svg>
+  );
+}
+
 function EmptyIcon({ color }: { color: string }) {
   return (
     <Svg width={64} height={64} viewBox="0 0 24 24" fill="none">
@@ -163,6 +183,11 @@ interface Post {
   author_id: string;
   content: string;
   photo_url?: string;
+  photos?: string[];
+  place_name?: string;
+  place_lat?: number;
+  place_lon?: number;
+  route_id?: string;
   likes_count: number;
   comments_count: number;
   created_at: string;
@@ -254,7 +279,7 @@ function NotifItem({ notif }: { notif: Notification }) {
 
   return (
     <View style={[styles.notifItem, !notif.is_read && { backgroundColor: c.surface2 }]}>
-      <Avatar size={38} name={notif.actor?.nickname ?? '?'} uri={notif.actor?.avatar_url} />
+      <Avatar size={38} name={notif.actor?.nickname ?? '?'} uri={proxyUrl(notif.actor?.avatar_url)} />
       <View style={styles.notifIconBadge}>
         <NotifIcon type={notif.type} />
       </View>
@@ -379,7 +404,7 @@ function PostCard({ post, onLike, onComment, onMore, onAuthorPress }: {
     >
       <View style={styles.cardHeader}>
         <TouchableOpacity onPress={onAuthorPress} activeOpacity={0.7}>
-          <Avatar name={post.author?.nickname ?? '?'} uri={post.author?.avatar_url} size={36} />
+          <Avatar name={post.author?.nickname ?? '?'} uri={proxyUrl(post.author?.avatar_url)} size={36} />
         </TouchableOpacity>
         <TouchableOpacity style={{ flex: 1, marginLeft: 10 }} onPress={onAuthorPress} activeOpacity={0.7}>
           <Text style={[Typography.bodyStrong, { color: c.text1 }]}>
@@ -391,9 +416,57 @@ function PostCard({ post, onLike, onComment, onMore, onAuthorPress }: {
           <MoreIcon color={c.text3} />
         </TouchableOpacity>
       </View>
-      <Text style={[Typography.body, { color: c.text1, marginTop: 10, lineHeight: 22 }]} numberOfLines={4}>
-        {post.content}
-      </Text>
+      {post.content ? (
+        <Text style={[Typography.body, { color: c.text1, marginTop: 10, lineHeight: 22 }]} numberOfLines={4}>
+          {post.content}
+        </Text>
+      ) : null}
+
+      {/* Photo grid */}
+      {(() => {
+        const allPhotos = post.photos?.length
+          ? post.photos
+          : post.photo_url ? [post.photo_url] : [];
+        return allPhotos.length > 0 ? (
+          <PhotoGrid photos={allPhotos} style={{ marginTop: 10 }} />
+        ) : null;
+      })()}
+
+      {/* Place / Route badges */}
+      {(post.place_name || post.route_id) && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+          {post.place_name && (
+            <TouchableOpacity
+              style={[styles.metaBadge, { backgroundColor: '#E74C3C18' }]}
+              onPress={() => router.push({
+                pathname: '/place-map',
+                params: {
+                  lat: String(post.place_lat ?? 55.7558),
+                  lon: String(post.place_lon ?? 37.6173),
+                  name: post.place_name!,
+                },
+              })}
+              activeOpacity={0.7}
+            >
+              <MapPinIcon color="#E74C3C" />
+              <Text style={[Typography.micro, { color: '#E74C3C', marginLeft: 4 }]} numberOfLines={1}>
+                {post.place_name}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {post.route_id && (
+            <TouchableOpacity
+              style={[styles.metaBadge, { backgroundColor: c.accentSoft }]}
+              onPress={() => router.push(`/route/${post.route_id}`)}
+              activeOpacity={0.7}
+            >
+              <RouteSmallIcon color={c.accent} />
+              <Text style={[Typography.micro, { color: c.accent, marginLeft: 4 }]}>Маршрут →</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       <View style={styles.actions}>
         <TouchableOpacity style={styles.action} onPress={onLike}>
           <HeartIcon color={likeColor} filled={liked} />
@@ -752,6 +825,11 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', marginTop: 14, gap: 20 },
   action: { flexDirection: 'row', alignItems: 'center' },
   empty: { alignItems: 'center', paddingTop: 80 },
+  metaBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.pill,
+    maxWidth: 180,
+  },
   fab: {
     position: 'absolute', bottom: 24, right: 20,
     width: 52, height: 52, borderRadius: 26,

@@ -16,7 +16,9 @@ class User(Base):
     nickname = Column(String(64), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     avatar_url = Column(String(512), nullable=True)
+    full_name = Column(String(128), nullable=True)
     bio = Column(Text, nullable=True)
+    city = Column(String(128), nullable=True)
     interests = Column(ARRAY(String), nullable=False, default=list)
     push_token = Column(String(512), nullable=True)
     push_platform = Column(String(16), nullable=True)  # android | ios

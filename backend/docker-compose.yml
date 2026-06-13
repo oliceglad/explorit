@@ -11,6 +11,8 @@ services:
   api:
     build: .
     env_file: .env
+    volumes:
+      - media_data:/app/media
     depends_on:
       db:
         condition: service_healthy
@@ -61,3 +63,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  media_data:

@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { Typography, Spacing, Radius } from '@/constants/typography';
 import { Avatar } from '@/components/ui/Avatar';
-import { profileApi } from '@/services/api';
+import { profileApi, proxyUrl } from '@/services/api';
 import { useAuthStore } from '@/store/auth';
 import Svg, { Path, Circle } from 'react-native-svg';
 
@@ -137,7 +137,7 @@ function ProfileHeader({
 
   return (
     <View style={styles.profileHeader}>
-      <Avatar size={84} name={profile.nickname} uri={profile.avatar_url} />
+      <Avatar size={84} name={profile.nickname} uri={proxyUrl(profile.avatar_url)} />
 
       <Text style={[Typography.h2, { color: c.text1, marginTop: 14, textAlign: 'center' }]}>
         @{profile.nickname}

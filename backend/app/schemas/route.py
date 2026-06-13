@@ -25,6 +25,8 @@ class RouteResponse(BaseModel):
 
     id: UUID
     author_id: UUID
+    author_nickname: Optional[str] = None
+    author_avatar_url: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     photo_url: Optional[str] = None

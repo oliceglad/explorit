@@ -11,8 +11,8 @@ import { Typography, Spacing, Radius } from '@/constants/typography';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/store/auth';
-import { gamificationApi, profileApi, routesApi, uploadsApi } from '@/services/api';
-import Svg, { Path, Circle } from 'react-native-svg';
+import { gamificationApi, profileApi, routesApi, uploadsApi, proxyUrl } from '@/services/api';
+import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 
 interface Route {
   id: string;
@@ -28,7 +28,29 @@ interface Route {
   created_at: string;
 }
 
+interface Post {
+  id: string;
+  content: string;
+  photo_url?: string;
+  created_at: string;
+  likes_count: number;
+  comments_count: number;
+  is_liked?: boolean;
+}
+
 // ─── Icons ────────────────────────────────────────────────────────────────────
+
+function GearIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={3} stroke={color} strokeWidth={1.75} />
+      <Path
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 function RouteIcon({ color, accent }: { color: string; accent: string }) {
   return (
@@ -48,13 +70,49 @@ function ChevronIcon({ color }: { color: string }) {
   );
 }
 
+function EmptyRouteIcon({ color }: { color: string }) {
+  return (
+    <Svg width={56} height={56} viewBox="0 0 24 24" fill="none">
+      <Path d="M7 17c0-3.5 2-5.5 5-5.5S17 9 17 5.5" stroke={color} strokeWidth={1.3} strokeLinecap="round" strokeOpacity={0.5} />
+      <Circle cx={7} cy={17} r={2.5} stroke={color} strokeWidth={1.3} strokeOpacity={0.5} />
+      <Circle cx={17} cy={5.5} r={2.5} stroke={color} strokeWidth={1.3} strokeOpacity={0.5} />
+    </Svg>
+  );
+}
+
+function EmptyPostIcon({ color }: { color: string }) {
+  return (
+    <Svg width={56} height={56} viewBox="0 0 24 24" fill="none">
+      <Rect x={3} y={3} width={18} height={18} rx={3} stroke={color} strokeWidth={1.3} strokeOpacity={0.5} />
+      <Line x1={7} y1={8} x2={17} y2={8} stroke={color} strokeWidth={1.3} strokeLinecap="round" strokeOpacity={0.5} />
+      <Line x1={7} y1={12} x2={17} y2={12} stroke={color} strokeWidth={1.3} strokeLinecap="round" strokeOpacity={0.5} />
+      <Line x1={7} y1={16} x2={13} y2={16} stroke={color} strokeWidth={1.3} strokeLinecap="round" strokeOpacity={0.5} />
+    </Svg>
+  );
+}
+
+function HeartIcon({ color, filled }: { color: string; filled?: boolean }) {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill={filled ? color : 'none'}>
+      <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
+        stroke={color} strokeWidth={1.75} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function CommentIcon({ color }: { color: string }) {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+      <Path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
+        stroke={color} strokeWidth={1.75} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 // ─── Profile Route Card ───────────────────────────────────────────────────────
 
 function ProfileRouteCard({
-  route,
-  onPress,
-  onAddToPost,
-  onPublish,
+  route, onPress, onAddToPost, onPublish,
 }: {
   route: Route;
   onPress: () => void;
@@ -63,48 +121,73 @@ function ProfileRouteCard({
 }) {
   const c = useTheme();
   const distKm = ((route.distance_m ?? 0) / 1000).toFixed(1);
+  const [imgErr, setImgErr] = useState(false);
 
   return (
-    <TouchableOpacity
-      style={[styles.routeCard, { backgroundColor: c.surface }]}
-      onPress={onPress}
-      activeOpacity={0.85}
-    >
+    <TouchableOpacity style={[styles.routeCard, { backgroundColor: c.surface }]} onPress={onPress} activeOpacity={0.85}>
       <View style={[styles.routeThumb, { backgroundColor: c.surface2 }]}>
-        {route.photo_url ? (
-          <Image source={{ uri: route.photo_url }} style={styles.routeThumbImg} />
+        {route.photo_url && !imgErr ? (
+          <Image
+            source={{ uri: proxyUrl(route.photo_url) }}
+            style={styles.routeThumbImg}
+            resizeMode="cover"
+            onError={() => setImgErr(true)}
+          />
         ) : (
           <RouteIcon color={c.text2} accent={c.accent} />
         )}
       </View>
-
       <View style={{ flex: 1, paddingHorizontal: 12 }}>
         <Text style={[Typography.bodyStrong, { color: c.text1 }]} numberOfLines={1}>
           {route.title || 'Маршрут'}
         </Text>
         <Text style={[Typography.cap, { color: c.text2, marginTop: 2 }]}>
-          {distKm} км · {route.duration_min ?? '?'} мин
-          {route.is_public ? ' · Публичный' : ''}
+          {distKm} км · {route.duration_min ?? '?'} мин{route.is_public ? ' · Публичный' : ''}
         </Text>
         <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={[styles.cardBtn, { backgroundColor: c.surface2 }]}
-            onPress={onAddToPost}
-          >
+          <TouchableOpacity style={[styles.cardBtn, { backgroundColor: c.surface2 }]} onPress={onAddToPost}>
             <Text style={[Typography.micro, { color: c.text2 }]}>В пост</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.cardBtn, { backgroundColor: c.accent + '20' }]}
-            onPress={onPublish}
-          >
+          <TouchableOpacity style={[styles.cardBtn, { backgroundColor: c.accent + '20' }]} onPress={onPublish}>
             <Text style={[Typography.micro, { color: c.accent }]}>
               {route.is_public ? 'Изменить' : 'Опубликовать'}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
-
       <ChevronIcon color={c.text3} />
+    </TouchableOpacity>
+  );
+}
+
+// ─── Profile Post Card ────────────────────────────────────────────────────────
+
+function ProfilePostCard({ post, onPress }: { post: Post; onPress: () => void }) {
+  const c = useTheme();
+  const ago = React.useMemo(() => {
+    const diff = (Date.now() - new Date(post.created_at).getTime()) / 1000;
+    if (diff < 60) return 'только что';
+    if (diff < 3600) return `${Math.floor(diff / 60)} мин`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} ч`;
+    return `${Math.floor(diff / 86400)} д`;
+  }, [post.created_at]);
+
+  return (
+    <TouchableOpacity style={[styles.postCard, { backgroundColor: c.surface }]} onPress={onPress} activeOpacity={0.85}>
+      <Text style={[Typography.micro, { color: c.text3, marginBottom: 6 }]}>{ago}</Text>
+      <Text style={[Typography.body, { color: c.text1, lineHeight: 22 }]} numberOfLines={4}>
+        {post.content}
+      </Text>
+      <View style={styles.postActions}>
+        <View style={styles.postAction}>
+          <HeartIcon color={post.is_liked ? '#E74C3C' : c.text3} filled={post.is_liked} />
+          <Text style={[Typography.micro, { color: c.text3, marginLeft: 4 }]}>{post.likes_count}</Text>
+        </View>
+        <View style={styles.postAction}>
+          <CommentIcon color={c.text3} />
+          <Text style={[Typography.micro, { color: c.text3, marginLeft: 4 }]}>{post.comments_count}</Text>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -114,10 +197,11 @@ function ProfileRouteCard({
 export default function ProfileScreen() {
   const c = useTheme();
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, loadUser } = useAuthStore();
 
   const [progress, setProgress] = useState<any>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [tab, setTab] = useState<'routes' | 'posts'>('routes');
 
   // Publish sheet state
@@ -129,11 +213,25 @@ export default function ProfileScreen() {
   const [publishLoading, setPublishLoading] = useState(false);
 
   const loadData = useCallback(() => {
+    loadUser().catch(() => {});
     gamificationApi.progress().then(({ data }) => setProgress(data)).catch(() => {});
     profileApi.archive().then(({ data }) => setRoutes(data)).catch(() => {});
   }, []);
 
-  useFocusEffect(loadData);
+  const loadPosts = useCallback(() => {
+    if (!user?.id) return;
+    profileApi.posts(user.id).then(({ data }) => {
+      setPosts(Array.isArray(data) ? data : (data.items ?? []));
+    }).catch(() => {});
+  }, [user?.id]);
+
+  useFocusEffect(useCallback(() => {
+    loadData();
+  }, [loadData]));
+
+  useFocusEffect(useCallback(() => {
+    loadPosts();
+  }, [loadPosts]));
 
   const handleLogout = () =>
     Alert.alert('Выйти?', '', [
@@ -170,7 +268,7 @@ export default function ProfileScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.85,
       allowsEditing: true,
       aspect: [4, 3],
@@ -197,7 +295,6 @@ export default function ProfileScreen() {
           uploadedUrls.push(data.url);
         }
       }
-
       await routesApi.update(publishRoute.id, {
         title: publishTitle.trim(),
         description: publishDesc.trim() || undefined,
@@ -206,7 +303,6 @@ export default function ProfileScreen() {
         is_public: publishPublic,
         is_saved: true,
       });
-
       closePublish();
       loadData();
     } catch (e: any) {
@@ -218,31 +314,33 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
+  const displayName = user.full_name || user.nickname;
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: c.bg }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={[Typography.h1, { color: c.text1 }]}>Профиль</Text>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={[styles.iconBtn, { backgroundColor: c.surface }]}>
-              <Text>↗</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.iconBtn, { backgroundColor: c.surface }]}
-              onPress={() => router.push('/settings')}
-            >
-              <Text>⚙️</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.iconBtn, { backgroundColor: c.surface }]}
+            onPress={() => router.push('/settings')}
+          >
+            <GearIcon color={c.text2} />
+          </TouchableOpacity>
         </View>
 
         {/* Identity */}
         <View style={styles.identity}>
-          <Avatar uri={user.avatar_url} name={user.nickname} size={84} />
-          <View style={{ marginTop: 12 }}>
-            <Text style={[Typography.h2, { color: c.text1, textAlign: 'center' }]}>{user.nickname}</Text>
-            <Text style={[Typography.cap, { color: c.text3, textAlign: 'center', marginTop: 2 }]}>Самара</Text>
+          <Avatar uri={proxyUrl(user.avatar_url)} name={user.nickname} size={84} />
+          <View style={{ marginTop: 12, alignItems: 'center' }}>
+            <Text style={[Typography.h2, { color: c.text1 }]}>{displayName}</Text>
+            {user.full_name && (
+              <Text style={[Typography.cap, { color: c.text3, marginTop: 1 }]}>@{user.nickname}</Text>
+            )}
+            {user.city && (
+              <Text style={[Typography.cap, { color: c.text3, marginTop: 2 }]}>📍 {user.city}</Text>
+            )}
           </View>
           <Button
             label="Редактировать"
@@ -257,7 +355,7 @@ export default function ProfileScreen() {
         <View style={[styles.statsGrid, { backgroundColor: c.surface2, borderRadius: Radius.card, margin: Spacing.screen }]}>
           {[
             { label: 'Маршрутов', value: routes.length },
-            { label: 'км пройдено', value: Math.round(progress?.distance_walked_km ?? 0) },
+            { label: 'Постов', value: posts.length },
             { label: 'Уровень', value: progress?.level ?? 1 },
           ].map(({ label, value }) => (
             <View key={label} style={styles.stat}>
@@ -269,7 +367,11 @@ export default function ProfileScreen() {
 
         {/* XP Banner */}
         {progress && (
-          <View style={[styles.xpBanner, { backgroundColor: c.text1 }]}>
+          <TouchableOpacity
+            style={[styles.xpBanner, { backgroundColor: c.text1 }]}
+            onPress={() => router.push('/gamification')}
+            activeOpacity={0.85}
+          >
             <View style={{ flex: 1 }}>
               <Text style={[Typography.capUp, { color: c.accent }]}>Уровень {progress.level}</Text>
               <Text style={[Typography.bodyStrong, { color: c.bg, marginTop: 4 }]}>{progress.level_name}</Text>
@@ -277,8 +379,9 @@ export default function ProfileScreen() {
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={[Typography.cap, { color: `${c.bg}99` }]}>до {progress.level + 1}</Text>
               <Text style={[Typography.cap, { color: c.bg, marginTop: 2 }]}>{progress.xp} XP</Text>
+              <Text style={[Typography.micro, { color: c.accent, marginTop: 4 }]}>Достижения →</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
 
         {/* Tabs */}
@@ -290,7 +393,7 @@ export default function ProfileScreen() {
               style={[styles.tab, tab === t && { borderBottomWidth: 2, borderBottomColor: c.text1 }]}
             >
               <Text style={[Typography.bodyStrong, { color: tab === t ? c.text1 : c.text3 }]}>
-                {t === 'routes' ? `Маршруты ${routes.length}` : 'Посты'}
+                {t === 'routes' ? `Маршруты ${routes.length}` : `Посты ${posts.length}`}
               </Text>
             </TouchableOpacity>
           ))}
@@ -301,8 +404,8 @@ export default function ProfileScreen() {
           <View style={{ padding: Spacing.screen, gap: 10 }}>
             {routes.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={{ fontSize: 36 }}>🗺</Text>
-                <Text style={[Typography.body, { color: c.text3, marginTop: 8, textAlign: 'center' }]}>
+                <EmptyRouteIcon color={c.text3} />
+                <Text style={[Typography.body, { color: c.text3, marginTop: 12, textAlign: 'center' }]}>
                   Нет маршрутов.{'\n'}Создай первый на вкладке «Карта»
                 </Text>
               </View>
@@ -327,11 +430,23 @@ export default function ProfileScreen() {
 
         {/* Posts tab */}
         {tab === 'posts' && (
-          <View style={styles.empty}>
-            <Text style={{ fontSize: 36 }}>📝</Text>
-            <Text style={[Typography.body, { color: c.text3, marginTop: 8, textAlign: 'center' }]}>
-              Постов пока нет.{'\n'}Поделись своими впечатлениями!
-            </Text>
+          <View style={{ padding: Spacing.screen, gap: 10 }}>
+            {posts.length === 0 ? (
+              <View style={styles.empty}>
+                <EmptyPostIcon color={c.text3} />
+                <Text style={[Typography.body, { color: c.text3, marginTop: 12, textAlign: 'center' }]}>
+                  Постов пока нет.{'\n'}Поделись своими впечатлениями!
+                </Text>
+              </View>
+            ) : (
+              posts.map((post) => (
+                <ProfilePostCard
+                  key={post.id}
+                  post={post}
+                  onPress={() => router.push(`/post/${post.id}`)}
+                />
+              ))
+            )}
           </View>
         )}
 
@@ -347,23 +462,14 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {/* Publish Modal */}
-      <Modal
-        visible={!!publishRoute}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={closePublish}
-      >
+      <Modal visible={!!publishRoute} animationType="slide" presentationStyle="pageSheet" onRequestClose={closePublish}>
         <SafeAreaView style={[styles.modalSafe, { backgroundColor: c.bg }]}>
-          {/* Modal Header */}
           <View style={[styles.modalHeader, { borderBottomColor: c.border }]}>
             <TouchableOpacity onPress={closePublish}>
               <Text style={[Typography.body, { color: c.text2 }]}>Отмена</Text>
             </TouchableOpacity>
             <Text style={[Typography.bodyStrong, { color: c.text1 }]}>Добавить в маршруты</Text>
-            <TouchableOpacity
-              onPress={handlePublish}
-              disabled={publishLoading || !publishTitle.trim()}
-            >
+            <TouchableOpacity onPress={handlePublish} disabled={publishLoading || !publishTitle.trim()}>
               {publishLoading ? (
                 <ActivityIndicator color={c.accent} size="small" />
               ) : (
@@ -375,7 +481,6 @@ export default function ProfileScreen() {
           </View>
 
           <ScrollView keyboardShouldPersistTaps="handled">
-            {/* Title */}
             <TextInput
               style={[styles.modalInput, { color: c.text1, borderBottomColor: c.border, fontFamily: 'Manrope_600SemiBold' }]}
               placeholder="Название маршрута *"
@@ -383,8 +488,6 @@ export default function ProfileScreen() {
               value={publishTitle}
               onChangeText={setPublishTitle}
             />
-
-            {/* Description */}
             <TextInput
               style={[styles.modalTextArea, { color: c.text1, borderBottomColor: c.border, fontFamily: 'Manrope_400Regular' }]}
               placeholder="Описание (необязательно)"
@@ -395,8 +498,6 @@ export default function ProfileScreen() {
               numberOfLines={4}
               textAlignVertical="top"
             />
-
-            {/* Photos */}
             <View style={styles.photosSection}>
               <Text style={[Typography.bodyStrong, { color: c.text1, marginBottom: 12 }]}>
                 Фотографии {publishPhotos.length > 0 ? `(${publishPhotos.length}/5)` : '(до 5)'}
@@ -405,7 +506,7 @@ export default function ProfileScreen() {
                 <View style={[styles.photosRow, { paddingHorizontal: Spacing.screen }]}>
                   {publishPhotos.map((uri, i) => (
                     <TouchableOpacity key={i} onPress={() => removePhoto(i)} style={styles.photoSlotWrap}>
-                      <Image source={{ uri }} style={[styles.photoSlot, { borderRadius: Radius.sm }]} />
+                      <Image source={{ uri: proxyUrl(uri) ?? uri }} style={[styles.photoSlot, { borderRadius: Radius.sm }]} />
                       <View style={styles.removePhotoOverlay}>
                         <Text style={{ color: 'white', fontWeight: '700', fontSize: 14 }}>✕</Text>
                       </View>
@@ -418,7 +519,7 @@ export default function ProfileScreen() {
                   ))}
                   {publishPhotos.length < 5 && (
                     <TouchableOpacity
-                      style={[styles.photoAdd, { backgroundColor: c.surface2, borderRadius: Radius.sm, borderColor: c.border2, borderWidth: 1, borderStyle: 'dashed' }]}
+                      style={[styles.photoAdd, { backgroundColor: c.surface2, borderRadius: Radius.sm, borderColor: c.border2, borderWidth: 1 }]}
                       onPress={addPhoto}
                     >
                       <Text style={{ fontSize: 28, color: c.text3 }}>+</Text>
@@ -427,8 +528,6 @@ export default function ProfileScreen() {
                 </View>
               </ScrollView>
             </View>
-
-            {/* Public toggle */}
             <View style={[styles.toggleRow, { borderTopColor: c.border, borderBottomColor: c.border }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[Typography.bodyStrong, { color: c.text1 }]}>Публичный маршрут</Text>
@@ -453,8 +552,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.screen, paddingTop: 8, paddingBottom: 12 },
-  headerActions: { flexDirection: 'row', gap: 8 },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   identity: { alignItems: 'center', paddingTop: 8, paddingBottom: 4 },
   statsGrid: { flexDirection: 'row', paddingVertical: 16 },
   stat: { flex: 1, alignItems: 'center' },
@@ -466,27 +564,22 @@ const styles = StyleSheet.create({
 
   // Route card
   routeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
+    flexDirection: 'row', alignItems: 'center', padding: 12,
     borderRadius: Radius.card,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  routeThumb: {
-    width: 64,
-    height: 64,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
+  routeThumb: { width: 64, height: 64, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   routeThumbImg: { width: '100%', height: '100%' },
   cardActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
   cardBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.pill },
+
+  // Post card
+  postCard: {
+    padding: 14, borderRadius: Radius.card,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+  },
+  postActions: { flexDirection: 'row', gap: 16, marginTop: 12 },
+  postAction: { flexDirection: 'row', alignItems: 'center' },
 
   // Publish modal
   modalSafe: { flex: 1 },

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Integer, Index
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Integer, Index, JSON, Float
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -19,6 +19,10 @@ class Post(Base):
     route_id = Column(UUID(as_uuid=True), ForeignKey("routes.id", ondelete="SET NULL"), nullable=True)
     content = Column(Text, nullable=False)
     photo_url = Column(String(512), nullable=True)
+    photos = Column(JSON, nullable=True)          # list of bare storage keys
+    place_name = Column(String(256), nullable=True)
+    place_lat = Column(Float, nullable=True)
+    place_lon = Column(Float, nullable=True)
     likes_count = Column(Integer, nullable=False, default=0)
     comments_count = Column(Integer, nullable=False, default=0)
     status = Column(String(16), nullable=False, default=POST_STATUS_ACTIVE, index=True)

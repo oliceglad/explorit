@@ -8,9 +8,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { Typography, Spacing, Radius } from '@/constants/typography';
 import { Avatar } from '@/components/ui/Avatar';
-import { postsApi, profileApi } from '@/services/api';
+import { postsApi, profileApi, proxyUrl } from '@/services/api';
 import { useAuthStore } from '@/store/auth';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { PhotoGrid } from '@/components/post/PhotoGrid';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,25 @@ function MoreIcon({ color }: { color: string }) {
   );
 }
 
+function MapPinIcon({ color }: { color: string }) {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+      <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke={color} strokeWidth={1.75} />
+      <Circle cx={12} cy={10} r={3} stroke={color} strokeWidth={1.75} />
+    </Svg>
+  );
+}
+
+function RouteSmallIcon({ color }: { color: string }) {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+      <Path d="M7 17c0-3.5 2-5.5 5-5.5S17 9 17 5.5" stroke={color} strokeWidth={1.75} strokeLinecap="round" />
+      <Circle cx={7} cy={17} r={2} stroke={color} strokeWidth={1.75} />
+      <Circle cx={17} cy={5.5} r={2} stroke={color} strokeWidth={1.75} />
+    </Svg>
+  );
+}
+
 function TrashIcon({ color }: { color: string }) {
   return (
     <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
@@ -114,6 +134,11 @@ interface Post {
   author_id: string;
   content: string;
   photo_url?: string;
+  photos?: string[];
+  place_name?: string;
+  place_lat?: number;
+  place_lon?: number;
+  route_id?: string;
   likes_count: number;
   comments_count: number;
   created_at: string;
@@ -360,7 +385,7 @@ export default function PostDetail() {
                         : router.push(`/user/${post.author_id}`)
                     }
                   >
-                    <Avatar size={40} name={author?.nickname ?? '?'} uri={author?.avatar_url} />
+                    <Avatar size={40} name={author?.nickname ?? '?'} uri={proxyUrl(author?.avatar_url)} />
                     <View style={{ marginLeft: 10, flex: 1 }}>
                       <Text style={[Typography.bodyStrong, { color: c.text1 }]}>
                         @{author?.nickname ?? 'unknown'}
@@ -400,9 +425,58 @@ export default function PostDetail() {
                       </View>
                     </View>
                   ) : (
-                    <Text style={[Typography.body, { color: c.text1, marginTop: 14, lineHeight: 22 }]}>
-                      {post.content}
-                    </Text>
+                    <>
+                      {post.content ? (
+                        <Text style={[Typography.body, { color: c.text1, marginTop: 14, lineHeight: 22 }]}>
+                          {post.content}
+                        </Text>
+                      ) : null}
+
+                      {/* Photos */}
+                      {(() => {
+                        const allPhotos = post.photos?.length
+                          ? post.photos
+                          : post.photo_url ? [post.photo_url] : [];
+                        return allPhotos.length > 0 ? (
+                          <PhotoGrid photos={allPhotos} style={{ marginTop: 14 }} />
+                        ) : null;
+                      })()}
+
+                      {/* Place / Route badges */}
+                      {(post.place_name || post.route_id) && (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+                          {post.place_name && (
+                            <TouchableOpacity
+                              style={[styles.metaBadge, { backgroundColor: '#E74C3C18' }]}
+                              onPress={() => router.push({
+                                pathname: '/place-map',
+                                params: {
+                                  lat: String(post.place_lat ?? 55.7558),
+                                  lon: String(post.place_lon ?? 37.6173),
+                                  name: post.place_name,
+                                },
+                              })}
+                              activeOpacity={0.7}
+                            >
+                              <MapPinIcon color="#E74C3C" />
+                              <Text style={[{ fontSize: 12, color: '#E74C3C', marginLeft: 5 }]} numberOfLines={1}>
+                                {post.place_name}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          {post.route_id && (
+                            <TouchableOpacity
+                              style={[styles.metaBadge, { backgroundColor: c.accentSoft }]}
+                              onPress={() => router.push(`/route/${post.route_id}`)}
+                              activeOpacity={0.7}
+                            >
+                              <RouteSmallIcon color={c.accent} />
+                              <Text style={[{ fontSize: 12, color: c.accent, marginLeft: 5 }]}>Маршрут →</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      )}
+                    </>
                   )}
 
                   <View style={styles.actions}>
@@ -440,7 +514,7 @@ export default function PostDetail() {
             return (
               <View style={styles.comment}>
                 <TouchableOpacity onPress={goToAuthor} activeOpacity={0.7}>
-                  <Avatar size={32} name={item.author?.nickname ?? '?'} uri={item.author?.avatar_url} />
+                  <Avatar size={32} name={item.author?.nickname ?? '?'} uri={proxyUrl(item.author?.avatar_url)} />
                 </TouchableOpacity>
                 <View style={[styles.bubble, { backgroundColor: c.surface }]}>
                   <View style={styles.commentHeader}>
@@ -519,7 +593,7 @@ export default function PostDetail() {
 
         {/* Composer */}
         <View style={[styles.composer, { backgroundColor: c.surface, borderTopColor: c.border }]}>
-          <Avatar size={32} name={user?.nickname} uri={user?.avatar_url} />
+          <Avatar size={32} name={user?.nickname} uri={proxyUrl(user?.avatar_url)} />
           <TextInput
             style={[
               styles.composerInput,
@@ -594,6 +668,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   postCard: { borderRadius: Radius.card, padding: 16 },
+  metaBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 9, paddingVertical: 5, borderRadius: Radius.pill, maxWidth: 200,
+  },
   row: { flexDirection: 'row', alignItems: 'center' },
   actions: { flexDirection: 'row', gap: 20, marginTop: 14 },
   action: { flexDirection: 'row', alignItems: 'center' },

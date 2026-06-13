@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import joinedload
 import redis.asyncio as aioredis
 
 from app.database import get_db
@@ -118,6 +119,8 @@ async def get_archive(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Route).where(Route.author_id == current_user.id, Route.is_saved == True)
+        select(Route)
+        .options(joinedload(Route.author))
+        .where(Route.author_id == current_user.id, Route.is_saved == True)
     )
     return list(result.scalars().all())
